@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y \
   apt-get autoclean && apt-get clean
 
 # Clone the openvMVG repo
-RUN git clone https://github.com/openMVG/openMVG
+RUN git clone https://github.com/BorodinDK/openMVG
 RUN cd /openMVG && git submodule update --init --recursive
 
 RUN mkdir /openMVG_Build; \
@@ -74,6 +74,6 @@ RUN cd openMVS_Build &&\
 
 # Install OpenMVS library
 RUN cd openMVS_Build &&\
-	make -j4 &&\
+	make -j 4 &&\
 	make install
 ENV PATH /usr/local/bin/OpenMVS:$PATH
