@@ -45,35 +45,33 @@ RUN cd /openMVG_Build && make test && make install;
 
 
 # openMVS
-
-# Eigen (Known issues with eigen 3.3.7 as of 12/10/2019, so using this tested branch/commit instead) 
-RUN git clone https://gitlab.com/libeigen/eigen --branch 3.2 eigen
-RUN mkdir /eigen_build/
-RUN cd /eigen_build &&\
-	cmake . ../eigen &&\
-	make && make install &&\
-	cd ..
-
-RUN apt-get -y install libboost-iostreams-dev libboost-program-options-dev libboost-system-dev libboost-serialization-dev
-
-# OpenCV
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq libopencv-dev
-
-# CGAL
-RUN apt-get -y install libcgal-dev libcgal-qt5-dev
+# Eigen (Known issues with eigen 3.3.7 as of 12/10/2019, so using this tested branch/commit instead)
+RUN git clone https://gitlab.com/libeigen/eigen --branch 3.2; \
+  mkdir eigen_build && cd eigen_build; \
+  cmake -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX="/usr/local/include/eigen32" . ../eigen; \
+  make && make install; \
+  cd .. && rm -rf eigen_build
 
 # VCGLib
 RUN git clone https://github.com/cdcseacave/VCG.git vcglib
 
-# Build from openMVS
-RUN git clone https://github.com/cdcseacave/openMVS.git
+# Build latest openMVS
+RUN git clone https://github.com/cdcseacave/openMVS.git --branch develop; \
+  mkdir openMVS_build && cd openMVS_build; \
+  cmake . ../openMVS -DCMAKE_BUILD_TYPE=Release \
+    -DVCG_ROOT=/vcglib \
+    -DEIGEN3_INCLUDE_DIR=/usr/local/include/eigen32/include/eigen3 \
+    -DCMAKE_INSTALL_PREFIX="/opt"; \
+  make -j4 && make install; \
+  cp ../openMVS/MvgMvsPipeline.py /opt/bin/; \
+  cd .. && rm -rf openMVS_build
 
-RUN mkdir openMVS_Build
-RUN cd openMVS_Build &&\
-	cmake . ../openMVS -DCMAKE_BUILD_TYPE=Release -DVCG_ROOT=/vcglib
+# Install cmvs-pmvs
+RUN git clone https://github.com/pmoulon/CMVS-PMVS cmvs-pmvs; \
+  mkdir cmvs_pmvs_build && cd cmvs_pmvs_build; \
+  cmake ../cmvs-pmvs/program -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt; \
+  make -j4 && make install; \
+  cd .. && rm -rf cmvs_pmvs_build
 
-# Install OpenMVS library
-RUN cd openMVS_Build &&\
-	make -j 4 &&\
-	make install
-ENV PATH /usr/local/bin/OpenMVS:$PATH
+# Add binaries to path
+ENV PATH $PATH:/opt/bin:/opt/bin/OpenMVS
