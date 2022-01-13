@@ -1,51 +1,80 @@
-# Use Ubuntu 18.04 (will be supported until April 2023)
-FROM ubuntu:bionic
-
-# Add openMVG binaries to path
-ENV PATH $PATH:/openMVG_Build/install/bin
+FROM ubuntu:20.04
 
 # Get dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
   cmake \
   build-essential \
   graphviz \
-  vim \
   git \
-  mercurial \
   coinor-libclp-dev \
   libceres-dev \
-  libflann-dev \
-  liblemon-dev \
   libjpeg-dev \
   libpng-dev \
   libtiff-dev \
-  libglu1-mesa-dev \
-  python-minimal; \
+  libxi-dev \
+  libxinerama-dev \
+  libxcursor-dev \
+  libxxf86vm-dev; \
   apt-get autoclean && apt-get clean
 
-# Clone the openvMVG repo
-RUN git clone https://github.com/BorodinDK/openMVG
-RUN cd /openMVG && git submodule update --init --recursive
+# Boost
+RUN apt-get -y install libboost-iostreams-dev libboost-program-options-dev libboost-system-dev libboost-serialization-dev
 
-RUN mkdir /openMVG_Build; \
-  cd /openMVG_Build; \
+# CGAL
+RUN apt-get -y install libcgal-dev libcgal-qt5-dev
+
+#GLFW3 (Optional)
+RUN apt-get -y install freeglut3-dev libglew-dev libglfw3-dev
+
+# Install COLMAP dependencies
+RUN DEBIAN_FRONTEND=noninteractive apt-get -y install \
+  libboost-program-options-dev \
+  libboost-filesystem-dev \
+  libboost-graph-dev \
+  libboost-regex-dev \
+  libboost-system-dev \
+  libboost-test-dev \
+  libeigen3-dev \
+  libsuitesparse-dev \
+  libfreeimage-dev \
+  libgoogle-glog-dev \
+  libgflags-dev \
+  libglew-dev \
+  qtbase5-dev \
+  libqt5opengl5-dev
+  
+# Build latest COLMAP
+RUN git clone https://github.com/colmap/colmap.git --branch dev; \
+  mkdir comap_build && cd comap_build; \
+  cmake . ../colmap -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX="/opt"; \
+  make -j4 && make install; \
+  cd .. && rm -rf comap_build
+
+# OpenCV
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq libopencv-dev
+
+# Build latest openvMVG
+RUN git clone --recursive https://github.com/openMVG/openMVG.git --branch develop; \
+  mkdir openMVG_build && cd openMVG_build; \
   cmake -DCMAKE_BUILD_TYPE=RELEASE \
-    -DCMAKE_INSTALL_PREFIX="/opt/openMVG_Build/install" \
-    -DOpenMVG_BUILD_TESTS=ON \
+    -DCMAKE_INSTALL_PREFIX="/opt" \
+    -DOpenMVG_BUILD_TESTS=OFF \
     -DOpenMVG_BUILD_EXAMPLES=OFF \
-    -DFLANN_INCLUDE_DIR_HINTS=/usr/include/flann \
-    -DLEMON_INCLUDE_DIR_HINTS=/usr/include/lemon \
+    -DOpenMVG_BUILD_DOC=OFF \
+    -DOpenMVG_BUILD_OPENGL_EXAMPLES=ON \
+    -DOpenMVG_USE_OPENCV=ON \
+    -DOpenMVG_USE_OCVSIFT=OFF \
     -DCOINUTILS_INCLUDE_DIR_HINTS=/usr/include \
     -DCLP_INCLUDE_DIR_HINTS=/usr/include \
     -DOSI_INCLUDE_DIR_HINTS=/usr/include \
+    -DEIGEN_INCLUDE_DIR_HINTS=/usr/include/eigen3 \
     ../openMVG/src; \
-    make -j 4;
+  make -j 4 && make install; \
+  cp ../openMVG/src/openMVG/exif/sensor_width_database/sensor_width_camera_database.txt /opt/bin/; \
+  cd .. && rm -rf openMVG_build
 
-RUN cd /openMVG_Build && make test && make install;
-
-
-# openMVS
-# Eigen (Known issues with eigen 3.3.7 as of 12/10/2019, so using this tested branch/commit instead)
+# Eigen (Known issues with eigen 3.3.7 as of 12/10/2019, so using this tested branch/commit instead) 
 RUN git clone https://gitlab.com/libeigen/eigen --branch 3.2; \
   mkdir eigen_build && cd eigen_build; \
   cmake -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX="/usr/local/include/eigen32" . ../eigen; \

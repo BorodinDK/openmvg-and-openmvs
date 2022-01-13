@@ -2,9 +2,9 @@ name: Build app
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, test ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, test ]
 
 env:
   REGISTRY: ghcr.io
